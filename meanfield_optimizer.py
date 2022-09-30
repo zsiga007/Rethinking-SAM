@@ -193,28 +193,42 @@ class MixSAM(MeanFieldOptimizer):
 
       def _get_perturbation(self):
         perturbation_groups = []
-        squared_norm = torch.tensor(0.0, device=self.shared_device)
+        squared_norm = torch.tensor(0.0)
+        num_params = 0
+
         for param_group in self.param_groups:
             perturbation_group = {'params':[]}
-            sam_squared_norm = sum([((param_group['params'][i].grad)**2).sum() for i in range(len(param_group['params']))])
             for param in param_group['params']:
                 if param.requires_grad:
                     if param.grad is None:
-                        raise ValueError('MixSAM requires gradients to be populated to take a step.')
-                    shape = param.shape
-                    normal_pert = Normal(0, torch.sqrt(sam_squared_norm)).sample(shape).to(self.shared_device)
-                    grad = param.grad
-                    perturbation = grad + torch.sqrt(self.kappa_scale) * normal_pert
+                        raise ValueError('VariationalSAM requires gradients to be populated to take a step.')
+                    perturbation = param.grad.detach().clone()
                     squared_norm.add_((perturbation**2).sum())
+                    num_params+=torch.numel(perturbation)
                     perturbation_group['params'].append(perturbation)
                 else:
                     perturbation_group['params'].append(None)
+
             perturbation_groups.append(perturbation_group)
-        scale = 0.05 / torch.sqrt(squared_norm)
+
+        scale = torch.sqrt(num_params / squared_norm)
+
+        squared_norm = torch.tensor(0.0)
+
         for perturbation_group in perturbation_groups:
             for perturbation in perturbation_group['params']:
                 if perturbation is not None:
-                    perturbation.data = scale * perturbation
+                    perturbation.mul_(scale)
+                    perturbation.add_(self.kappa.scale * torch.randn_like(perturbation))
+                    squared_norm.add_((perturbation**2).sum())
+        
+        scale = torch.sqrt(num_params / squared_norm)
+
+        for perturbation_group in perturbation_groups:
+            for perturbation in perturbation_group['params']:
+                if perturbation is not None:
+                    perturbation.mul_(scale)
+
         return perturbation_groups
 
       @torch.no_grad()
