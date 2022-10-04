@@ -207,7 +207,7 @@ class MixSAM(MeanFieldOptimizer):
             for param in param_group['params']:
                 if param.requires_grad:
                     if param.grad is None:
-                        raise ValueError('VariationalSAM requires gradients to be populated to take a step.')
+                        raise ValueError('MixSAM requires gradients to be populated to take a step.')
                     perturbation = param.grad.detach().clone()
                     squared_norm.add_((perturbation**2).sum())
                     num_params+=torch.numel(perturbation)
@@ -225,7 +225,7 @@ class MixSAM(MeanFieldOptimizer):
             for perturbation in perturbation_group['params']:
                 if perturbation is not None:
                     perturbation.mul_(scale)
-                    perturbation.add_(self.kappa.scale * torch.randn_like(perturbation))
+                    perturbation.add_(self.kappa_scale * torch.randn_like(perturbation))
                     squared_norm.add_((perturbation**2).sum())
         
         scale = torch.sqrt(num_params / squared_norm)
