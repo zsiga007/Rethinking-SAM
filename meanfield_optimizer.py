@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from copy import deepcopy
 import torch
 from torch.optim import Optimizer
 from torch.nn.init import constant_
@@ -13,7 +14,7 @@ class MeanFieldOptimizer(Optimizer, ABC):
     format as in param_groups. And the populate_gradients_for_Sigma
     method."""
 
-    def __init__(self, params, base_optimizer, lr_sigma = 0.01, sigma_prior = 1, init_scale_M = 0.1, kl_div_weight = 0.01, **kwargs):
+    def __init__(self, params, base_optimizer, lr_sigma = 0.01, sigma_prior = 10, init_scale_M = 5e-5, kl_div_weight = 1, **kwargs):
        
         if not lr_sigma >= 0.0:
             raise ValueError(f"Invalid lr_sigma, should be non-negative: {lr_sigma}")
@@ -77,6 +78,7 @@ class MeanFieldOptimizer(Optimizer, ABC):
             for param in param_group["params"]:
                 if param.requires_grad:
                     param.data = self.state[param]["old_p"]
+                    param.grad.add_(2 * self.kl_div_weight * param.detach().clone() / self.sigma_prior**2)
 
     @torch.no_grad()
     @abstractmethod
@@ -113,14 +115,14 @@ class MFVI(MeanFieldOptimizer):
             calculates mean log loss.
         """
     
-    def __init__(self, params, base_optimizer, lr_sigma=0.01, sigma_prior=1, init_scale_M=0.1, kl_div_weight=0.01, **kwargs):
+    def __init__(self, params, base_optimizer, **kwargs):
         if not lr_sigma > 0.0:
             raise ValueError(f"Invalid lr_sigma, should be non-negative: {lr_sigma}")
         if not sigma_prior > 0.0:
             raise ValueError(f"Invalid sigma_prior, should be positive: {sigma_prior}")
         if not kl_div_weight > 0.0:
             raise ValueError(f"Invalid kl_div_weight, should be positive: {kl_div_weight}")
-        super(MFVI, self).__init__(params, base_optimizer, lr_sigma=lr_sigma, sigma_prior=sigma_prior, init_scale_M=init_scale_M, kl_div_weight=kl_div_weight, **kwargs)
+        super(MFVI, self).__init__(params, base_optimizer, **kwargs)
 
     def _get_perturbation(self):
         """Calculates a standard normal perturbation for each parameter."""
@@ -165,8 +167,10 @@ class RandomSAM(MeanFieldOptimizer):
             updates to mean and field parameters
         init_scale_M (float): controls the size of the variance of the Normal perturbation
         """
-    def __init__(self, params, base_optimizer, init_scale_M=5e-5, **kwargs):
-      super(RandomSAM, self).__init__(params, base_optimizer, lr_sigma=0.0, sigma_prior=1, init_scale_M=init_scale_M, kl_div_weight=0.0, **kwargs)
+    def __init__(self, params, base_optimizer, lr_sigma=0.0, **kwargs):
+        if lr_sigma != 0.0:
+            raise ValueError('RandomSAM should not modify Sigma, lr_sigma should be 0.')
+        super(RandomSAM, self).__init__(params, base_optimizer, lr_sigma=0.0, **kwargs)
 
     def _get_perturbation(self):
         """Calculates a standard normal perturbation for each parameter."""
@@ -187,34 +191,50 @@ class RandomSAM(MeanFieldOptimizer):
 
 
 class MixSAM(MeanFieldOptimizer):
-      def __init__(self, params, base_optimizer, kappa_scale=1, **kwargs):
+      def __init__(self, params, base_optimizer, kappa_scale=1.0, lr_sigma=0.0, **kwargs):
+        if lr_sigma != 0.0:
+            raise ValueError('MixSAM should not modify Sigma, lr_sigma should be 0.')
         self.kappa_scale = kappa_scale
-        super(MixSAM, self).__init__(params, base_optimizer, lr_sigma=0.0, sigma_prior=0, init_scale_M=1.0, kl_div_weight=0.0, **kwargs)
+        super(MixSAM, self).__init__(params, base_optimizer, lr_sigma=0.0, **kwargs)
 
       def _get_perturbation(self):
         perturbation_groups = []
-        squared_norm = torch.tensor(0.0, device=self.shared_device)
+        squared_norm = torch.tensor(0.0)
+        num_params = 0
+
         for param_group in self.param_groups:
             perturbation_group = {'params':[]}
-            sam_squared_norm = sum([((param_group['params'][i].grad)**2).sum() for i in range(len(param_group['params']))])
             for param in param_group['params']:
                 if param.requires_grad:
                     if param.grad is None:
                         raise ValueError('MixSAM requires gradients to be populated to take a step.')
-                    shape = param.shape
-                    normal_pert = Normal(0, torch.sqrt(sam_squared_norm)).sample(shape).to(self.shared_device)
-                    grad = param.grad
-                    perturbation = grad + torch.sqrt(self.kappa_scale) * normal_pert
+                    perturbation = param.grad.detach().clone()
                     squared_norm.add_((perturbation**2).sum())
+                    num_params+=torch.numel(perturbation)
                     perturbation_group['params'].append(perturbation)
                 else:
                     perturbation_group['params'].append(None)
+
             perturbation_groups.append(perturbation_group)
-        scale = 0.05 / torch.sqrt(squared_norm)
+
+        scale = torch.sqrt(num_params / squared_norm)
+
+        squared_norm = torch.tensor(0.0)
+
         for perturbation_group in perturbation_groups:
             for perturbation in perturbation_group['params']:
                 if perturbation is not None:
-                    perturbation.data = scale * perturbation
+                    perturbation.mul_(scale)
+                    perturbation.add_(self.kappa_scale * torch.randn_like(perturbation))
+                    squared_norm.add_((perturbation**2).sum())
+        
+        scale = torch.sqrt(num_params / squared_norm)
+
+        for perturbation_group in perturbation_groups:
+            for perturbation in perturbation_group['params']:
+                if perturbation is not None:
+                    perturbation.mul_(scale)
+
         return perturbation_groups
 
       @torch.no_grad()
