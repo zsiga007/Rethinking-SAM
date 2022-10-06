@@ -199,7 +199,7 @@ class MixSAM(MeanFieldOptimizer):
 
       def _get_perturbation(self):
         perturbation_groups = []
-        squared_norm = torch.tensor(0.0)
+        squared_norm = torch.tensor(0.0, device=self.shared_device)
         num_params = 0
 
         for param_group in self.param_groups:
@@ -219,7 +219,7 @@ class MixSAM(MeanFieldOptimizer):
 
         scale = torch.sqrt(num_params / squared_norm)
 
-        squared_norm = torch.tensor(0.0)
+        squared_norm = torch.tensor(0.0, device=self.shared_device)
 
         for perturbation_group in perturbation_groups:
             for perturbation in perturbation_group['params']:
