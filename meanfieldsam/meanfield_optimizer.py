@@ -30,15 +30,11 @@ class MeanFieldOptimizer(Optimizer, ABC):
         defaults = dict(lr_sigma=lr_sigma, **kwargs)
         super(MeanFieldOptimizer, self).__init__(params, defaults)
 
-        self.num_params = sum(
-            [
-                sum([
+        self.num_params = sum([sum([
                     param.numel()
                     for param in param_group['params']
-                    if param.requires_grad
-                    ])
-                for param_group in self.param_groups
-            ])
+                    if param.requires_grad])
+                for param_group in self.param_groups])
         self.M_param_groups = []
         for param_group in self.param_groups:
             M_param_group = param_group.copy()
