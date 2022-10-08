@@ -15,7 +15,7 @@ class MeanFieldOptimizer(Optimizer, ABC):
     format as in param_groups. And the populate_gradients_for_Sigma
     method."""
 
-    def __init__(self, params, base_optimizer, num_params, lr_sigma = 0.01, sigma_prior = 10, rho=0.05, kl_div_weight = 1, **kwargs):
+    def __init__(self, params, base_optimizer, lr_sigma = 0.01, sigma_prior = 10, rho=0.05, kl_div_weight = 1, **kwargs):
        
         if not lr_sigma >= 0.0:
             raise ValueError(f"Invalid lr_sigma, should be non-negative: {lr_sigma}")
