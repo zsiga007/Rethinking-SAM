@@ -30,6 +30,15 @@ class MeanFieldOptimizer(Optimizer, ABC):
         defaults = dict(lr_sigma=lr_sigma, **kwargs)
         super(MeanFieldOptimizer, self).__init__(params, defaults)
 
+        self.num_params = sum(
+            [
+                sum([
+                    param.numel()
+                    for param in param_group['params']
+                    if param.requires_grad
+                    ])
+                for paramg_group in self.param_groups
+            ])
         self.M_param_groups = []
         for param_group in self.param_groups:
             M_param_group = param_group.copy()
@@ -202,8 +211,7 @@ class MixSAM(MeanFieldOptimizer):
       def _get_perturbation(self):
         perturbation_groups = []
         squared_norm = torch.tensor(0.0, device=self.shared_device)
-        num_params = 0
-
+        
         for param_group in self.param_groups:
             perturbation_group = {'params':[]}
             for param in param_group['params']:
@@ -212,14 +220,13 @@ class MixSAM(MeanFieldOptimizer):
                         raise ValueError('MixSAM requires gradients to be populated to take a step.')
                     perturbation = param.grad.detach().clone()
                     squared_norm.add_((perturbation**2).sum())
-                    num_params+=torch.numel(perturbation)
                     perturbation_group['params'].append(perturbation)
                 else:
                     perturbation_group['params'].append(None)
 
             perturbation_groups.append(perturbation_group)
 
-        scale = torch.sqrt(num_params / squared_norm)
+        scale = torch.sqrt(self.num_params / squared_norm)
 
         squared_norm = torch.tensor(0.0, device=self.shared_device)
 
@@ -230,7 +237,7 @@ class MixSAM(MeanFieldOptimizer):
                     perturbation.add_(self.kappa_scale * torch.randn_like(perturbation))
                     squared_norm.add_((perturbation**2).sum())
         
-        scale = torch.sqrt(num_params / squared_norm)
+        scale = torch.sqrt(self.num_params / squared_norm)
 
         for perturbation_group in perturbation_groups:
             for perturbation in perturbation_group['params']:
