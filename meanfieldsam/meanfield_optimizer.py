@@ -37,7 +37,7 @@ class MeanFieldOptimizer(Optimizer, ABC):
                     for param in param_group['params']
                     if param.requires_grad
                     ])
-                for paramg_group in self.param_groups
+                for param_group in self.param_groups
             ])
         self.M_param_groups = []
         for param_group in self.param_groups:
