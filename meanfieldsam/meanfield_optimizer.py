@@ -199,9 +199,26 @@ class RandomSAM(MeanFieldOptimizer):
 
 
 class MixSAM(MeanFieldOptimizer):
+    """Implements MixSAM, a noisy version of Sharpness Aware Minimization.
+    Args:
+        params (iterable): iterable of parameters to optimize or dicts defining
+            parameter groups
+        base_optimizer (torch.optim.Optimizer): base optimizer to make gradient
+            updates to mean and field parameters
+        rho (float): controls the size of the perturbation similarly to the rho
+            parameter in SAM.
+        sigma_prior (float): controls the standard deviation of the isotropic
+            Gaussian prior over parameters. Default value is 10. In practice, this
+            parameter plays a role in the strength of L2 weight decay
+        kl_div_weight (float): controls the strength of the KL/L2 penalty. Setting this
+            parameter to `weight_decay * sigma_prior**2 / 2` results in L2 penalty
+            equivalent to using weight_decay as argument in an optimizer.
+        """
       def __init__(self, params, base_optimizer, kappa_scale=1.0, lr_sigma=0.0, **kwargs):
         if lr_sigma != 0.0:
             raise ValueError('MixSAM should not modify Sigma, lr_sigma should be 0.')
+        if weight_decay in kwargs:
+            raise ValueError('Do not use weight_decay with MixSAM. Use kl_div_weight and sigma_prior instead')
         self.kappa_scale = kappa_scale
         super(MixSAM, self).__init__(params, base_optimizer, lr_sigma=0.0, **kwargs)
 
