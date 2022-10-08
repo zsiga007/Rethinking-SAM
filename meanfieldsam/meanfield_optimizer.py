@@ -27,7 +27,6 @@ class MeanFieldOptimizer(Optimizer, ABC):
         self.sigma_prior = sigma_prior
         self.kl_div_weight = kl_div_weight
         self.rho = rho
-        self.num_params = num_params
         defaults = dict(lr_sigma=lr_sigma, **kwargs)
         super(MeanFieldOptimizer, self).__init__(params, defaults)
 
