@@ -169,10 +169,10 @@ class RandomSAM(MeanFieldOptimizer):
             updates to mean and field parameters
         init_scale_M (float): controls the size of the variance of the Normal perturbation
         """
-    def __init__(self, params, base_optimizer, num_params, lr_sigma=0.0, **kwargs):
+    def __init__(self, params, base_optimizer, lr_sigma=0.0, **kwargs):
         if lr_sigma != 0.0:
             raise ValueError('RandomSAM should not modify Sigma, lr_sigma should be 0.')
-        super(RandomSAM, self).__init__(params, base_optimizer, num_params, lr_sigma=0.0, **kwargs)
+        super(RandomSAM, self).__init__(params, base_optimizer, lr_sigma=0.0, **kwargs)
 
     def _get_perturbation(self):
         """Calculates a standard normal perturbation for each parameter."""
@@ -193,11 +193,11 @@ class RandomSAM(MeanFieldOptimizer):
 
 
 class MixSAM(MeanFieldOptimizer):
-      def __init__(self, params, base_optimizer, num_params, kappa_scale=1.0, lr_sigma=0.0, **kwargs):
+      def __init__(self, params, base_optimizer, kappa_scale=1.0, lr_sigma=0.0, **kwargs):
         if lr_sigma != 0.0:
             raise ValueError('MixSAM should not modify Sigma, lr_sigma should be 0.')
         self.kappa_scale = kappa_scale
-        super(MixSAM, self).__init__(params, base_optimizer, num_params, lr_sigma=0.0, **kwargs)
+        super(MixSAM, self).__init__(params, base_optimizer, lr_sigma=0.0, **kwargs)
 
       def _get_perturbation(self):
         perturbation_groups = []
