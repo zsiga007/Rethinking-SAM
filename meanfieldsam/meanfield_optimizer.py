@@ -223,7 +223,7 @@ class MixSAM(MeanFieldOptimizer):
 
             perturbation_groups.append(perturbation_group)
 
-        scale = torch.sqrt(self.num_params / squared_norm)
+        scale = torch.sqrt(self.num_params) / (torch.sqrt(squared_norm) + self.eps)
 
         squared_norm = torch.tensor(0.0, device=self.shared_device)
 
@@ -234,7 +234,7 @@ class MixSAM(MeanFieldOptimizer):
                     perturbation.add_(self.kappa_scale * torch.randn_like(perturbation))
                     squared_norm.add_((perturbation**2).sum())
         
-        scale = torch.sqrt(self.num_params / squared_norm)
+        scale = torch.sqrt(self.num_params) / (torch.sqrt(squared_norm) + self.eps)
 
         for perturbation_group in perturbation_groups:
             for perturbation in perturbation_group['params']:
