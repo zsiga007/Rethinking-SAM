@@ -32,7 +32,7 @@ class MeanFieldOptimizer(Optimizer, ABC):
 
         self.num_params = 0
         for param_group in self.param_groups:
-            for param in param_group['param']:
+            for param in param_group['params']:
                 if param.requires_grad:
                     self.num_params += param.numel()
                 
