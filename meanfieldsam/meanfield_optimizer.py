@@ -214,7 +214,7 @@ class MixSAM(MeanFieldOptimizer):
             parameter to `weight_decay * sigma_prior**2 / 2` results in L2 penalty
             equivalent to using weight_decay as argument in an optimizer.
         """
-      def __init__(self, params, base_optimizer, kappa_scale=1.0, lr_sigma=0.0, **kwargs):
+    def __init__(self, params, base_optimizer, kappa_scale=1.0, lr_sigma=0.0, **kwargs):
         if lr_sigma != 0.0:
             raise ValueError('MixSAM should not modify Sigma, lr_sigma should be 0.')
         if weight_decay in kwargs:
@@ -222,10 +222,10 @@ class MixSAM(MeanFieldOptimizer):
         self.kappa_scale = kappa_scale
         super(MixSAM, self).__init__(params, base_optimizer, lr_sigma=0.0, **kwargs)
 
-      def _get_perturbation(self):
+    def _get_perturbation(self):
         perturbation_groups = []
         squared_norm = torch.tensor(0.0, device=self.shared_device)
-        
+            
         for param_group in self.param_groups:
             perturbation_group = {'params':[]}
             for param in param_group['params']:
@@ -250,7 +250,7 @@ class MixSAM(MeanFieldOptimizer):
                     perturbation.mul_(scale)
                     perturbation.add_(self.kappa_scale * torch.randn_like(perturbation))
                     squared_norm.add_((perturbation**2).sum())
-        
+            
         scale = np.sqrt(self.num_params) / (torch.sqrt(squared_norm) + self.eps)
 
         for perturbation_group in perturbation_groups:
@@ -260,9 +260,9 @@ class MixSAM(MeanFieldOptimizer):
 
         return perturbation_groups
 
-      @torch.no_grad()
-      def _populate_gradients_for_Sigma(self):
-          pass
+    @torch.no_grad()
+    def _populate_gradients_for_Sigma(self):
+        pass
 
 
 class VSAM(torch.optim.Optimizer):
