@@ -217,7 +217,7 @@ class MixSAM(MeanFieldOptimizer):
     def __init__(self, params, base_optimizer, kappa_scale=1.0, lr_sigma=0.0, **kwargs):
         if lr_sigma != 0.0:
             raise ValueError('MixSAM should not modify Sigma, lr_sigma should be 0.')
-        if weight_decay in kwargs:
+        if "weight_decay" in kwargs:
             raise ValueError('Do not use weight_decay with MixSAM. Use kl_div_weight and sigma_prior instead')
         self.kappa_scale = kappa_scale
         super(MixSAM, self).__init__(params, base_optimizer, lr_sigma=0.0, **kwargs)
